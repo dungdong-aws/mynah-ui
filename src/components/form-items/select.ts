@@ -149,9 +149,13 @@ export class SelectInternal {
     const currentValue = this.selectElement.value;
     const selectedOption = this.props.options?.find(option => option.value === currentValue);
 
-    // If there's a selected option, show label and description; otherwise use the base tooltip
+    // If there's a selected option, show label and description; otherwise use the base tooltip.
+    // This content is rendered by CardBody, which runs it through the markdown parser. That
+    // parser escapes raw HTML by design (see helper/marked.ts), so HTML tags here would be
+    // shown to the user as literal text. Author the tooltip as markdown instead; the parser
+    // is configured with `includeLineBreaks`, so a newline becomes a line break.
     if (selectedOption?.description != null) {
-      return `<strong>${selectedOption.label}</strong><br>${selectedOption.description}`;
+      return `**${selectedOption.label}**\n${selectedOption.description}`;
     }
     return this.props.tooltip ?? '';
   };

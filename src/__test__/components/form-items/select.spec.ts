@@ -6,6 +6,17 @@
 import { Select, SelectInternal, SelectProps } from '../../../components/form-items/select';
 import { MynahIcons } from '../../../components/icon';
 import { DomBuilder } from '../../../helper/dom';
+import { configureMarked } from '../../../helper/marked';
+
+// The real Overlay positions itself against a reference element, which is noise in jsdom.
+// Mocking it lets the tooltip tests capture the content that would have been displayed.
+jest.mock('../../../components/overlay', () => ({
+  Overlay: jest.fn().mockImplementation(() => ({
+    close: jest.fn()
+  })),
+  OverlayHorizontalDirection: { START_TO_RIGHT: 'start-to-right' },
+  OverlayVerticalDirection: { TO_TOP: 'to-top' }
+}));
 
 describe('Select Component', () => {
   let select: SelectInternal;
@@ -359,6 +370,80 @@ describe('Select Component', () => {
       selectElement.dispatchEvent(new Event('change'));
 
       expect(select.getValue()).toBe('option2');
+    });
+  });
+
+  describe('Tooltip content', () => {
+    // Options carrying a description mirror the model-selector case, where the hover
+    // tooltip shows the selected model's label above its description.
+    const optionsWithDescription = [
+      { value: 'model1', label: 'Claude Sonnet 4', description: 'Hybrid reasoning and coding' },
+      { value: 'model2', label: 'Claude Haiku', description: 'Fast responses for light tasks' }
+    ];
+
+    beforeEach(() => {
+      // The tooltip is rendered by CardBody through the markdown parser, which only escapes
+      // raw HTML once configureMarked() has installed the custom renderers. Without this the
+      // test would not reflect production rendering and would pass even for HTML tooltips.
+      configureMarked();
+      jest.useFakeTimers();
+      const { Overlay } = jest.requireMock('../../../components/overlay');
+      (Overlay as jest.Mock).mockClear();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    // Hovers the select, lets the tooltip delay elapse, and returns the element the
+    // tooltip Overlay was asked to display.
+    const openTooltip = (): HTMLElement => {
+      document.body.appendChild(select.render);
+      const container = document.body.querySelector('.mynah-form-input-container') as HTMLElement;
+      container.dispatchEvent(new MouseEvent('mouseenter'));
+      jest.advanceTimersByTime(400);
+
+      const { Overlay } = jest.requireMock('../../../components/overlay');
+      expect(Overlay).toHaveBeenCalledTimes(1);
+      return (Overlay as jest.Mock).mock.calls[0][0].children[0] as HTMLElement;
+    };
+
+    it('should render the tooltip as markdown, not as literal HTML tags', () => {
+      select = new SelectInternal({ options: optionsWithDescription, value: 'model1' });
+
+      const tooltip = openTooltip();
+
+      // The label must be a real element, not text that happens to look like a tag.
+      const strong = tooltip.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('Claude Sonnet 4');
+      expect(tooltip.textContent).toContain('Hybrid reasoning and coding');
+
+      // This is the regression: escaped markup surfacing as visible text.
+      expect(tooltip.textContent).not.toContain('<strong>');
+      expect(tooltip.textContent).not.toContain('<br>');
+    });
+
+    it('should track the selected option', () => {
+      select = new SelectInternal({ options: optionsWithDescription, value: 'model2' });
+
+      const tooltip = openTooltip();
+
+      expect(tooltip.querySelector('strong')?.textContent).toBe('Claude Haiku');
+      expect(tooltip.textContent).toContain('Fast responses for light tasks');
+    });
+
+    it('should fall back to the base tooltip when the option has no description', () => {
+      select = new SelectInternal({
+        options: testOptions,
+        value: 'option1',
+        tooltip: 'Pick an option'
+      });
+
+      const tooltip = openTooltip();
+
+      expect(tooltip.textContent).toContain('Pick an option');
+      expect(tooltip.querySelector('strong')).toBeNull();
     });
   });
 });
