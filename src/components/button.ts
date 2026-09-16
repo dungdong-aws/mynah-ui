@@ -185,7 +185,7 @@ class ButtonInternal extends ButtonAbstract {
             // CardBody owns markdown rendering; pre-rendering here causes its parser to escape the generated HTML.
             tooltipText += props.tooltip;
           }
-          if (tooltipText != null) {
+          if (tooltipText != null && tooltipText.trim() !== '') {
             this.showTooltip(tooltipText);
           }
         },
@@ -211,7 +211,7 @@ class ButtonInternal extends ButtonAbstract {
   };
 
   private readonly showTooltip = (content: string): void => {
-    if (content.trim() !== undefined) {
+    if (content.trim() !== '') {
       clearTimeout(this.tooltipTimeout);
       this.tooltipTimeout = setTimeout(() => {
         const elm: HTMLElement = this.render;

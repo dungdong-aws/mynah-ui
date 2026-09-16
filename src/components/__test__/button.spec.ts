@@ -118,6 +118,30 @@ describe('button', () => {
     jest.useRealTimers();
   });
 
+  it('does not render an empty or whitespace-only tooltip', () => {
+    configureMarked();
+    jest.useFakeTimers();
+    const { Overlay } = jest.requireMock('../overlay');
+
+    for (const tooltip of ['', '   ']) {
+      (Overlay as jest.Mock).mockClear();
+      const testButton = new Button({
+        icon: document.createElement('i'),
+        tooltip,
+        onClick: jest.fn(),
+      });
+
+      document.body.appendChild(testButton.render);
+      testButton.render.dispatchEvent(new MouseEvent('mouseover'));
+      jest.advanceTimersByTime(350);
+
+      expect(Overlay).not.toHaveBeenCalled();
+      testButton.render.remove();
+    }
+
+    jest.useRealTimers();
+  });
+
   it('renders a truncated label tooltip exactly once', () => {
     configureMarked();
     jest.useFakeTimers();
