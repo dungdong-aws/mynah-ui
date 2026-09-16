@@ -123,7 +123,7 @@ describe('button', () => {
     jest.useFakeTimers();
     const { Overlay } = jest.requireMock('../overlay');
 
-    for (const tooltip of ['', '   ']) {
+    for (const tooltip of [ '', '   ' ]) {
       (Overlay as jest.Mock).mockClear();
       const testButton = new Button({
         icon: document.createElement('i'),
